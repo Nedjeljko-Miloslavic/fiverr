@@ -1,251 +1,303 @@
-const canvas = document.querySelector("canvas")
-canvas.width = 1200
-canvas.height = 600
-
-const c = canvas.getContext("2d")
-c.font = "25px Arial"
-
-//----CLASSES-----
-//this is generic background class (for sky and ground)
-
-class Background{
-    constructor(position,size,color){
-        this.position = position
-        this.size = size
-        this.color = color
-    }
-
-    draw(){
-        c.beginPath()
-        c.fillStyle = this.color
-        c.fillRect(this.position.x, this.position.y, this.size.x, this.size.y)
-        
-    }
-}
-
-class Grass{
-    constructor(x,y,size){
-        this.startX = x
-        this.startY = y
-        this.size = size
-        this.endX = this.startX
-        this.endY = this.startY-Math.random()*this.size*10 -5
-        
-    }
-
-    draw(){
-        c.lineWidth = this.size*0.9
-        c.strokeStyle = "rgba(40,180,50,0.4)"
-        c.lineCap = "round"
-        
-        for(let i=1; i<6; i++){
-            c.beginPath()
-            c.moveTo(this.startX,this.startY)
-            c.lineTo(this.endX+Math.random()*20-10,this.endY+Math.random()*9)
-            c.stroke()
+var config = {
+    type: Phaser.AUTO,
+    width: 1200,
+    height: 700,
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 600 },
+            debug: false
         }
+    },
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
+    }
+};
+
+var game = new Phaser.Game(config);
+
+
+let startGameText = "name: \n\nThis game is about collecting stars \nand avoiding the 'bomb' that is jumping \naround the screen. You have 3 lives \nand every time you get hit by bomb \nyou lose one life. When losing all, game is over!"
+function preload ()
+{
+    this.load.image('sky', 'assets/sky.png');
+    this.load.image('ground', 'assets/platform.png');
+    this.load.image('star', 'assets/star.png');
+    this.load.image('bomb', 'assets/bomb.png');
+    this.load.image('black', 'assets/black.png');
+    this.load.image('start', 'assets/start.png');
+    this.load.spritesheet('dude', 'assets/dude.png', { frameWidth: 32, frameHeight: 48 });
+
+    this.load.audio("coin", 'assets/coin.wav')
+    this.load.audio("hit", 'assets/hit.wav')
+    this.load.audio("lose", 'assets/lose.mp3')
+}
+
+let player
+let sky
+let platforms
+let star
+let bomb
+let playerHit = false
+
+let cursors
+let black
+let start
+let startMessage
+let pressClick
+let keySpace
+let gameStarted = false
+let score = 0
+let scoreText
+let lives = 3
+let livesText
+let help
+let inHelp = false
+let newGame
+let newGameOpen = false
+
+let coinSound
+let hitSound
+
+let keyPressed = false
+
+function create (){
+   this.physics.pause()
+    //sounds
+    coinSound = this.sound.add("coin")
+    hitSound = this.sound.add("hit")
+    loseSound = this.sound.add("lose")
+    
+
+    sky = this.add.image(600,350,"sky").setScale(2)
+
+    //player and platforms
+    player = this.physics.add.sprite(600,300, "dude").setScale(1)
+    platforms = this.physics.add.staticGroup()
+    platforms.create(0,210,"ground")
+    platforms.create(150,450,"ground")
+    platforms.create(1200,420,"ground")
+    platforms.create(700,250,"ground").setScale(0.3,1).refreshBody()
+    platforms.create(600,700,"ground").setScale(3).refreshBody()
+    
+    this.physics.add.collider(platforms,player)
+    player.setCollideWorldBounds(true);
+    player.setBounce(0.2)
+
+    //star
+    star = this.physics.add.sprite(100,100,"star")
+    this.physics.add.collider(star,platforms)
+    star.setBounce(0.8)
+    this.physics.add.overlap(player, star, collectStar, null, this);
+
+    //bomb
+    bomb = this.physics.add.sprite(1000,100,"bomb").setScale(3)
+    this.physics.add.collider(bomb,platforms)
+    bomb.setBounce(1,0.8)
+    bomb.setVelocityX(200)
+    bomb.setCollideWorldBounds(true)
+    this.physics.add.overlap(player, bomb, hitBomb, null, this);
+
+    //score
+    scoreText = this.add.text(1000,40,"Score: "+score,{fontSize:"20px"})
+    livesText = this.add.text(1000,70,"Lives: " + lives, {fontSize:"20px"})
+    help = this.add.text(1000,100,"Press H for help", {fontSize:"20px"})
+    newGame = this.add.text(1000,130,"Press M for New game", {fontSize:"15px"})
+    //anims
+    this.anims.create({
+        key: 'left',
+        frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
+        frameRate: 10,
+        repeat: -1
+    });
+
+    this.anims.create({
+        key: 'turn',
+        frames: [ { key: 'dude', frame: 4 } ],
+        frameRate: 20
+    });
+
+    this.anims.create({
+        key: 'right',
+        frames: this.anims.generateFrameNumbers('dude', { start: 5, end: 8 }),
+        frameRate: 10,
+        repeat: -1
+    });
+
+
+    
+
+    //keys
+    cursors = this.input.keyboard.createCursorKeys()
+    keySpace = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+    nKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.N);
+    mKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.M);
+    hKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.H);
+    yKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Y);
+
+    black = this.add.image(600,350, "black").setScale(3)
+    
+    startMessage = this.add.text(16, 16, startGameText, { fontSize: '32px', fill: '#ffffff' });
+    pressClick = this.add.text(350,500,"PRESS CLICK TO PLAY", {fontSize:"40px", fill:"#ffffff"})
+    
+    
+    this.input.once('pointerdown',()=> {
+        initFunction()
+    });
+
+}
+
+function update ()
+{
+    
+    if(nKey.isDown && !gameStarted){
+        initFunction()
+        gameStarted = true
+    }
+
+    
+    
+    if(mKey.isDown && gameStarted && !newGameOpen && !inHelp){
+        newGameOpen = true
+        black = this.add.image(600,350,"black")
+        startMessage = this.add.text(510,200,"Are you sure",{fontSize:"25px"})
+        pressClick = this.add.text(570,300,"Y/N", {fontSize:"20px"})
+    }else if(nKey.isDown && newGameOpen){
+        newGameOpen = false
+        black.destroy()
+        startMessage.destroy()
+        pressClick.destroy()
+    }
+
+    if(yKey.isDown && newGameOpen){
+        newGameOpen = false
+        initFunction()
+    }
+
+    
+    
+
+    if(cursors.right.isDown && !playerHit){
+        player.setVelocityX(200)
+        player.anims.play("right", true)
+    }
+    else if(cursors.left.isDown && !playerHit){
+        player.setVelocityX(-200)
+        player.anims.play("left", true)
+    }else if(!playerHit){
+        player.anims.play("turn", true)
+        player.setVelocityX(0)
+    }
+    if(cursors.up.isDown && player.body.touching.down){
+        player.setVelocityY(-560)
+    }
+
+    if(bomb.body.touching.down){
+        if(Math.random()>0.97){
+            bomb.setVelocityY(-900)
+        }
+    }
+
+    if(gameStarted && !inHelp){
+        this.physics.resume()
         
     }
+
+    if(inHelp){
+        this.input.keyboard.on("keydown", function() {
+            startMessage.destroy()
+            pressClick.destroy()
+            black.destroy()
+            inHelp = false
+            
+        })
+    }
+
+    if(!inHelp && hKey.isDown && !newGameOpen){
+        inHelp = true
+        black = this.add.image(600,350,"black")
+        startMessage = this.add.text(510,200,"Controls",{fontSize:"30px"})
+        pressClick = this.add.text(420,300,"Right - right keyboard arrow\n\nLeft - left keyboard arrow\n\nJump - up keyboard arrow\n\n\n\n  Press any key to continue", {fontSize:"20px"})
+        this.physics.pause()
+    }
+    
+
+    livesText.setText("Lives: " + lives)
+    scoreText.setText("Score: " + score)
 }
 
-class TreeElement{
-    constructor(startX,startY,endX,endY,width,color){
-        this.startX = startX
-        this.startY = startY
-        this.endX = endX
-        this.endY = endY
-        this.width = width
-        this.color = color
-    }
 
-    draw(){
-        c.beginPath()
-        c.lineWidth = this.width
-        c.strokeStyle = this.color
-        c.lineCap = "round"
-        c.moveTo(this.startX,this.startY)
-        c.lineTo(this.endX,this.endY)
-        c.stroke()
-    }
+
+
+
+
+function initFunction (){
+    newGameOpen = false
+    inHelp = false
+    lives = 3
+    score = 0
+    gameStarted = true
+    black.destroy();
+    pressClick.destroy()
+    startMessage.destroy()
+    player.x = 600
+    player.y = 300
+    bomb.x = 1000
+    bomb.y = 0
 }
 
+function collectStar(player,star){
+    coinSound.play()
+    score+=10
+    
+    star.disableBody(true,true)
+    setTimeout(()=>{
+        if(player.x>600){
+            star.enableBody(true, Math.random()*600, 0, true, true)
+        }
+        else{
+            star.enableBody(true, Math.random()*600+600, 0, true, true)
+        }
+    },2000)
+    
+}
 
-//recursive function for drawing trees
-function drawTree(x,y,depth,currentDepth=0,angle=Math.PI/2,length=70,width=15){
-    if(currentDepth===depth){
-        return
+function hitBomb(player,bomb){
+
+    if(lives===1){
+        loseSound.play()
+        gameStarted = false
+        this.physics.pause()
+        black = this.add.image(600,350,"black").setScale(2.2)
+        startMessage = this.add.text(510,300, "GAME OVER", {fontSize:"33px"})
+        pressClick = this.add.text(490,450, "Press N for new game", {fontSize:"20px"})
     }
-    if(currentDepth===0){
-        const endY = y - Math.sin(angle) * length
-        const endX = x + Math.cos(angle)*length
-        const tree = new TreeElement(x,y,endX,endY,width,"rgb(60,30,30)")
-        treeArray.push(tree)
-        currentDepth++
-        length *= 0.5
-        width *= 0.5
-        drawTree(endX,endY,depth,currentDepth,angle,length,width)
+    
+   
+    hitSound.play()
+    playerHit = true
+    setTimeout(()=>{
+        playerHit = false
+    },1000)
+    if(player.x>bomb.x){
+        player.setVelocityX(300)
     }else{
-        length*=0.9
-        width*=0.6
-
-        let newAngle1 = angle+Math.random()*1.2-0.6
-        let endY1 = y - Math.sin(newAngle1) * length
-        let endX1 = x + Math.cos(newAngle1)*length
-        let tree1 = new TreeElement(x,y,endX1,endY1,width,"green")
-        treeArray.push(tree1)
-
-        let newAngle2 = angle+Math.random()*1.2-0.6
-        let endY2 = y - Math.sin(newAngle2) * length
-        let endX2 = x + Math.cos(newAngle2)*length
-        let tree2 = new TreeElement(x,y,endX2,endY2,width,"green")
-        treeArray.push(tree2)
-
-        let newAngle3 = angle+Math.random()*1.2-0.6
-        let endY3 = y - Math.sin(newAngle3) * length
-        let endX3 = x + Math.cos(newAngle3)*length
-        let tree3 = new TreeElement(x,y,endX3,endY3,width,"green")
-        treeArray.push(tree3)
-        currentDepth++
-        drawTree(endX1,endY1,depth,currentDepth,newAngle1,length,width)
-        drawTree(endX2,endY2,depth,currentDepth,newAngle2,length,width)
-        drawTree(endX3,endY3,depth,currentDepth,newAngle3,length,width)
+        player.setVelocityX(-300)
     }
+    lives--
+    
+    bomb.disableBody(true,true)
+    setTimeout(()=>{
+        if(player.x>600){
+            bomb.enableBody(true, Math.random()*600, 0, true, true)
+            bomb.setVelocityX(200)
+        }
+        else{
+            bomb.enableBody(true, Math.random()*600+600, 0, true, true)
+            bomb.setVelocityX(-200)
+        }
+    },2000)
+    
 }
-
-//function for drawing house
-function drawHouse(){
-    c.fillStyle = "yellow"
-    c.strokeStyle = "rgb(190,105,40)"
-    c.lineWidth = 3
-    c.fillRect(800,300,200,150)
-    c.beginPath()
-    c.moveTo(800,300)
-    c.lineTo(900,220)
-    c.lineTo(1000,300)
-    c.lineTo(800,300)
-    c.stroke()
-    c.fillStyle = "rgb(190,105,40)"
-    c.fill()
-    c.fillStyle = "rgb(80,25,10)"
-    c.fillRect(880,400,40,50)
-    c.fillStyle = "aqua"
-    c.fillRect(829,330,38,40)
-    c.fillRect(929,330,38,40)
-    c.beginPath()
-    c.strokeStyle = "silver"
-    c.moveTo(850,330)
-    c.lineTo(850,370)
-    c.stroke()
-    c.beginPath()
-    c.strokeStyle = "silver"
-    c.moveTo(950,330)
-    c.lineTo(950,370)
-    c.stroke()
-    //c.font = "25px Arial"
-    c.fillText("House", 1000,300)
-}
-
-//function for drawing fence
-function drawFence(startX,startY){
-    for(let i=0; i<20; i++){
-        const x= startX + i*20
-        c.strokeStyle = "rgb(200,100,100)"
-        c.beginPath()
-        c.moveTo(x,startY)
-        c.lineTo(x,startY-40)
-        c.lineTo(x+20,startY-40)
-        c.lineTo(x+20,startY)
-        c.stroke()
-    }
-    c.fillText("Fence", 1000,500)
-}
-
-//function for drawing hills
-function drawHills(){
-    c.beginPath()
-    c.arc(300,450,200,0,Math.PI*2)
-    c.arc(400,450,220,0,Math.PI*2)
-    c.fillStyle = "silver"
-    c.fill()
-    c.beginPath()
-    c.fillStyle = "rgb(180,180,180)"
-    c.arc(600,450,190,0,Math.PI*2)
-    c.fill()
-    c.closePath()
-}
-
-function drawCloud(){
-    c.beginPath()
-    c.fillStyle = "rgb(150,150,170)"
-    c.arc(700,100,50,0,Math.PI*2)
-    c.arc(640,100,40,0,Math.PI*2)
-    c.arc(760,100,35,0,Math.PI*2)
-    c.fill()
-
-    c.beginPath()
-    c.arc(900,200,50,0,Math.PI*2)
-    c.arc(840,200,40,0,Math.PI*2)
-    c.arc(960,200,35,0,Math.PI*2)
-    c.fill()
-}
-
-
-//colors
-const skyBg = c.createLinearGradient(0,0,0,canvas.height)
-skyBg.addColorStop(0, "rgb(0,0,100)")
-skyBg.addColorStop(0.5, "rgb(100,100,200)")
-skyBg.addColorStop(1, "white")
-
-const groundBg = c.createLinearGradient(0,300,0,canvas.height)
-groundBg.addColorStop(0, "rgb(110,45,10)")
-groundBg.addColorStop(0.5, "rgb(150,50,20)")
-groundBg.addColorStop(1, "rgb(190,105,40)")
-
-const sunBg = c.createRadialGradient(100,100,30,100,100,50)
-sunBg.addColorStop(0, "white")
-sunBg.addColorStop(1, "rgba(250,250,0,0)")
-
-
-const sky = new Background({x:0,y:0},{x:canvas.width,y:300},skyBg)
-const ground = new Background({x:0,y:300},{x:canvas.width,y:300},groundBg)
-const grassArray = []
-const treeArray = []
-
-for(let i=0; i<400; i++){
-    let y = Math.random()*canvas.height/2 +300
-    let x = Math.random()*canvas.width
-    let size = (y-300)*0.01 +1
-    const grass = new Grass(x,y,size)
-    grassArray.push(grass)
-}
-
-//drawing trees
-drawTree(390,410,10,0,Math.PI/2,40,5)
-drawTree(140,450,10,0,Math.PI/2,50,8)
-drawTree(240,450,10,0,Math.PI/2,50,8)
-drawTree(440,450,10,0,Math.PI/2,50,8)
-drawTree(100,500,10)
-
-//drawing sky
-sky.draw()
-drawCloud()
-
-//drawing mountain
-drawHills()
-
-//drawing ground
-ground.draw()
-grassArray.forEach(grass=>grass.draw())
-treeArray.forEach(tree=>tree.draw())
-
-//drawing sun
-c.fillStyle = sunBg
-c.arc(100,100,50,0,Math.PI*2)
-c.fill()
-c.fillStyle = "yellow"
-c.fillText("Sun", 150,90)
-
-//drawing house
-drawHouse()
-
-drawFence(700,470)
