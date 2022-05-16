@@ -165,22 +165,44 @@ class Lightning{
     }
 }
 
+class Text{
+    constructor(x,y,sizeX,sizeY,url,text){
+        this.x = x
+        this.y = y
+        this.sizeX = sizeX
+        this.sizeY = sizeY
+        this.image = createImage(url)
+        this.text = text
+    }
+    draw(){
+        let pos = 0
+        c.drawImage(this.image,0,0,958,958,this.x,this.y,this.sizeX,this.sizeY)
+        c.fillStyle = "black"
+        c.font = "15px Arial"
+        this.text.forEach(line=>{
+            pos += 20
+            c.fillText(line,this.x+15,this.y+pos+8)
+        })
+        
+    }
+}
+
+const textPika = new Text(530,320,100,120,"./images/bubble.png",["I am the", "stronger", "pokemon!!"])
+const textRaichu = new Text(750,320,140,120,"./images/vertical-bubble.png",["NO, I am the", "stronger", "pokemon!!"])
+const textPikaDead = new Text(500,320,100,120,"./images/bubble.png",["I shouldnt", "have done", "this..."])
+
 const pikachu = new Pikachu()
 const raichu = new Raichu()
 const lightning = new Lightning()
 
 
-const image = new Image()
-image.src = "./images/dead-pikachu.png"
-image.addEventListener("load", ()=>{
-    c.drawImage(image,1200,0,200,157,600,300,200,200)
-})
 
 
 function animate(){
     c.clearRect(0,0,canvas.width,canvas.height)
     //drawing sky
     sky.draw()
+    
 
     //drawing sun
     c.fillStyle = sunBg
@@ -190,7 +212,7 @@ function animate(){
     //drawing ground trees
     ground.draw()
    // treeArray.forEach(tree=>tree.draw())
-
+   
 
     requestAnimationFrame(animate)
 
@@ -199,16 +221,30 @@ function animate(){
     
     
     counter++
-    if(counter<490 && counter>400){
+
+    //lightning
+    if(counter<600 && counter>550){
         lightning.draw()
     }
+
+    //conversation
+    if(counter>200 && counter<350){
+        textPika.draw()
+    }
+    if(counter>350 && counter<500){
+        textRaichu.draw()
+    }
+    if(counter>750 && counter<900){
+        textPikaDead.draw()
+    }
+
     if(counter<200){
         pikachu.currentImage = pikachu.images.pikachuRunning
         raichu.currentImage = raichu.images.raichuIdle
-    }else if(counter<500){
+    }else if(counter<650){
         pikachu.currentImage = pikachu.images.angryPikachu
         raichu.currentImage = raichu.images.raichuAngry
-    }else if(counter <700){
+    }else if(counter <1000){
         pikachu.currentImage = pikachu.images.deadPikachu
         raichu.currentImage = raichu.images.raichuDead
     }else{
