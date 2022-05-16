@@ -69,20 +69,10 @@ class Pikachu{
     }
 
     draw(){
-        if(counter===200 || counter===400){
-            this.currentFrame = 0
-        }
-        if(counter<200){
-            this.currentImage = this.images.pikachuRunning
-        }else if(counter<400){
-            this.currentImage = this.images.angryPikachu
-        }else{
-            this.currentImage = this.images.deadPikachu
-        }
 
-        counter++
+    
         if(this.currentImage === this.images.pikachuRunning){
-            this.x++
+            this.x+=2
             c.drawImage(this.currentImage,Math.floor(this.currentFrame)*450,0,450,321,this.x,this.y,this.sizeX,this.sizeY)
             if(this.currentFrame<3){
                 this.currentFrame+=0.1
@@ -115,24 +105,69 @@ class Pikachu{
 
 class Raichu{
     constructor(){
-        this.x = 900
-        this.y = 400
-        this.sizeX = 150
-        this.sizeY = 100
+        this.x = 700
+        this.y = 390
+        this.sizeX = 190
+        this.sizeY = 120
         this.images = {
-            pikachuRunning: raichuIdle("./images/raichu-idle.png"),
-            angryPikachu: createImage("./images/raichu-dead.png")
+            raichuIdle: createImage("./images/raichu-idle.png"),
+            raichuAngry: createImage("./images/raichu-idle.png"),
+            raichuDead: createImage("./images/raichu-dead.png")
         }
-        this.currentImage = this.images.deadPikachu
+        this.currentImage = this.images.raichuIdle
         this.currentFrame = 0
     }
 
     draw(){
+        if(this.currentImage === this.images.raichuIdle){
+            c.drawImage(this.currentImage,Math.floor(this.currentFrame)*500,0,500,506,this.x,this.y,this.sizeX,this.sizeY)
+            if(this.currentFrame<14){
+                this.currentFrame+=0.07
+            }else{
+                this.currentFrame = 0
+            }
+        }
+
+        if(this.currentImage === this.images.raichuAngry){
+            this.currentFrame = 0
+            c.drawImage(this.currentImage,Math.floor(this.currentFrame)*500,0,500,506,this.x,this.y,this.sizeX,this.sizeY)
+        }
+
+        if(this.currentImage === this.images.raichuDead){
+            c.drawImage(this.currentImage,Math.floor(this.currentFrame)*200,0,200,175,this.x,this.y,this.sizeX-10,this.sizeY-20)
+            if(this.currentFrame<18){
+                this.currentFrame+=0.1
+            }else{
+                this.currentFrame = 0
+            }
+        }
+    }
+}
+
+class Lightning{
+    constructor(){
+        this.x = 580
+        this.y = 180
+        this.sizeX = 250
+        this.sizeY = 300
+        this.currentFrame = 0
+        this.image = createImage("./images/lightning.png")
+    }
+
+    draw(){
+        c.drawImage(this.image,Math.floor(this.currentFrame)*200,0,200,200,this.x,this.y,this.sizeX,this.sizeY)
+        if(this.currentFrame<4){
+            this.currentFrame += 0.1
+        }else{
+            this.currentFrame = 0
+        }
         
     }
 }
 
 const pikachu = new Pikachu()
+const raichu = new Raichu()
+const lightning = new Lightning()
 
 
 const image = new Image()
@@ -160,7 +195,26 @@ function animate(){
     requestAnimationFrame(animate)
 
     pikachu.draw()
+    raichu.draw()
     
+    
+    counter++
+    if(counter<490 && counter>400){
+        lightning.draw()
+    }
+    if(counter<200){
+        pikachu.currentImage = pikachu.images.pikachuRunning
+        raichu.currentImage = raichu.images.raichuIdle
+    }else if(counter<500){
+        pikachu.currentImage = pikachu.images.angryPikachu
+        raichu.currentImage = raichu.images.raichuAngry
+    }else if(counter <700){
+        pikachu.currentImage = pikachu.images.deadPikachu
+        raichu.currentImage = raichu.images.raichuDead
+    }else{
+        counter = 0
+        pikachu.x = 100
+    }
 }
 
 animate()
