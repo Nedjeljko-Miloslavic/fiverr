@@ -1,17 +1,5 @@
-*{
-    margin:0;
-    box-sizing: border-box;
-}
 canvas{
-    width: 1200px;;
-    height:600px;
-    border:silver 6px solid;
-    margin: auto;
-    display: block;
-}
-a{
-    font-size: large;
-    display: inline-block;
-    background-color: aqua;
-    padding:20px;
+    border:1px solid black;
+    width: 600px;
+    height: 400px;
 }
